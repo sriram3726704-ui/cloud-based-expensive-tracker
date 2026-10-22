@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A modern, real-time Cloud-Based Expense Tracker powered by Firebase Firestore, HTML, CSS, and JavaScript. Manage, categorize, and visualize your personal and business expenses effortlessly.">
+  <meta name="keywords" content="cloud expense tracker, firebase firestore, expense manager, personal finance dashboard">
+  <title>SpendCloud - Cloud-Based Expense Tracker</title>
+
+  <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <!-- Chart.js for Visual Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Top Navigation & Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo" aria-label="SpendCloud Logo">
+          <i class="fa-solid fa-cloud-bolt"></i>
+        </div>
+        <div class="brand-info">
+          <h1>SpendCloud <span class="cloud-badge" id="cloudStatusBadge"><span class="status-dot" id="cloudStatusDot"></span> <span id="cloudStatusText">Checking Cloud...</span></span></h1>
+          <p class="brand-subtitle">Smart Real-Time Cloud Expense Manager</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Currency Selector -->
+        <select class="currency-selector" id="currencySelector" aria-label="Currency Selector" title="Select Currency">
+          <option value="USD">USD ($)</option>
+          <option value="INR">INR (₹)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="CAD">CAD (C$)</option>
+          <option value="AUD">AUD (A$)</option>
+          <option value="JPY">JPY (¥)</option>
+        </select>
+
+        <!-- Firebase Config Trigger -->
+        <button class="btn btn-secondary" id="btnConfigModal" title="Configure Firebase Cloud Firestore">
+          <i class="fa-solid fa-cloud"></i>
+          <span>Firebase Setup</span>
+        </button>
+
+        <!-- Add Expense Primary Action -->
+        <button class="btn btn-primary" id="btnAddExpense" title="Add New Expense">
+          <i class="fa-solid fa-plus"></i>
+          <span>Add Expense</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Cloud Info Banner (Shown when in demo/local mode) -->
+    <div id="cloudBanner" style="display: none; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--radius-md); padding: 0.9rem 1.25rem; margin-bottom: 1.75rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <i class="fa-solid fa-circle-nodes" style="color: #818cf8; font-size: 1.2rem;"></i>
+        <span style="font-size: 0.88rem; color: #e0e7ff;">
+          <strong>Demo Mode Active:</strong> Data is currently saved to your browser. Connect Google Firebase Firestore for multi-device cloud synchronization!
+        </span>
+      </div>
+      <button class="btn btn-primary" onclick="document.getElementById('btnConfigModal').click()" style="padding: 0.45rem 0.95rem; font-size: 0.82rem;">
+        <i class="fa-solid fa-key"></i> Connect Firestore
+      </button>
+    </div>
+
+    <!-- Metrics Cards Grid -->
+    <section class="metrics-grid" aria-label="Key Expense Metrics">
+      <!-- Total Spent -->
+      <div class="metric-card primary">
+        <div class="metric-top">
+          <span class="metric-title">Total Spending</span>
+          <div class="metric-icon-wrap">
+            <i class="fa-solid fa-wallet"></i>
+          </div>
+        </div>
+        <div class="metric-value" id="metricTotalSpent">$0.00</div>
+        <div class="metric-bottom">
+          <span>All-time recorded expenses</span>
+          <span class="metric-pill" id="metricTotalCount">0 Total</span>
+        </div>
+      </div>
+
+      <!-- This Month Spending -->
+      <div class="metric-card success">
+        <div class="metric-top">
+          <span class="metric-title">This Month</span>
+          <div class="metric-icon-wrap">
+            <i class="fa-solid fa-calendar-check"></i>
+          </div>
+        </div>
+        <div class="metric-value" id="metricThisMonthSpent">$0.00</div>
+        <div class="metric-bottom">
+          <span>Current billing period</span>
+          <span class="metric-pill success">Active</span>
+        </div>
+      </div>
+
+      <!-- Monthly Budget -->
+      <div class="metric-card warning">
+        <div class="metric-top">
+          <span class="metric-title">Monthly Budget</span>
+          <div class="metric-icon-wrap" id="btnEditBudget" style="cursor: pointer;" title="Click to edit budget goal">
+            <i class="fa-solid fa-sliders"></i>
+          </div>
+        </div>
+        <div class="metric-value" id="budgetSpentText">$0.00</div>
+        <div class="budget-bar-container">
+          <div class="budget-bar" id="budgetProgressBar"></div>
+        </div>
+        <div class="metric-bottom" style="margin-top: 0.5rem;">
+          <span id="budgetRemainingText">$0.00 remaining</span>
+          <span style="cursor: pointer; text-decoration: underline; font-size: 0.75rem;" onclick="document.getElementById('btnEditBudget').click()">Edit Goal</span>
+        </div>
+      </div>
+
+      <!-- Average Transaction -->
+      <div class="metric-card purple">
+        <div class="metric-top">
+          <span class="metric-title">Average Expense</span>
+          <div class="metric-icon-wrap">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+        </div>
+        <div class="metric-value" id="metricAvgExpense">$0.00</div>
+        <div class="metric-bottom">
+          <span>Per transaction average</span>
+          <span class="metric-pill">Dynamic</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analytics Charts Section -->
+    <section class="analytics-grid" aria-label="Expense Visual Analytics">
+      <!-- Category Doughnut Breakdown -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i>
+            Expenses by Category
+          </h2>
+          <span class="metric-pill" id="chartCenterTotal">$0.00</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 1rem; align-items: center;">
+          <div class="chart-wrapper">
+            <canvas id="categoryChart"></canvas>
+          </div>
+          <div class="category-summary-list" id="categorySummaryList">
+            <!-- Dynamically populated top categories -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly Spending Trends -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fa-solid fa-chart-simple" style="color: var(--accent-cyan);"></i>
+            Monthly Spending Trend
+          </h2>
+          <span class="metric-pill">Last 6 Months</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Expenses Table Section -->
+    <main class="expenses-section" aria-label="Expense Records">
+      <div class="table-toolbar">
+        <!-- Search bar -->
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search by title, notes, or method..." aria-label="Search Expenses">
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-group">
+          <!-- Category Filter -->
+          <select class="select-filter" id="categoryFilter" aria-label="Filter by Category">
+            <option value="all">All Categories</option>
+          </select>
+
+          <!-- Time Range Filter -->
+          <select class="select-filter" id="timeFilter" aria-label="Filter by Time">
+            <option value="all">All Time</option>
+            <option value="this-month">This Month</option>
+            <option value="last-30">Last 30 Days</option>
+            <option value="this-year">This Year</option>
+          </select>
+
+          <!-- Sorting Filter -->
+          <select class="select-filter" id="sortFilter" aria-label="Sort Expenses">
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="amount-desc">Highest Amount</option>
+            <option value="amount-asc">Lowest Amount</option>
+          </select>
+
+          <!-- Export CSV Button -->
+          <button class="btn btn-secondary" id="btnExportCsv" title="Export expenses as CSV spreadsheet">
+            <i class="fa-solid fa-file-csv"></i>
+            <span>Export</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Table Header & Counter -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.5rem;">
+        <h3 style="font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600;">Transaction History</h3>
+        <span id="recordsCount" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">0 records</span>
+      </div>
+
+      <!-- Responsive Table Container -->
+      <div class="table-responsive">
+        <table class="expense-table" id="expenseTable" aria-label="Expense Records Table">
+          <thead>
+            <tr>
+              <th>Expense / Note</th>
+              <th>Category</th>
+              <th>Date</th>
+              <th>Method</th>
+              <th>Amount</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="expenseTableBody">
+            <!-- Dynamically populated rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+        <h4 class="empty-title">No expenses found</h4>
+        <p class="empty-desc">You haven't logged any expenses matching your criteria yet. Add your first expense to get started!</p>
+        <button class="btn btn-primary" onclick="document.getElementById('btnAddExpense').click()">
+          <i class="fa-solid fa-plus"></i> Add New Expense
+        </button>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ==========================================================================
+       Add / Edit Expense Modal
+       ========================================================================== -->
+  <div class="modal-overlay" id="expenseModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">
+          <i class="fa-solid fa-circle-plus"></i> Add Expense
+        </h3>
+        <button type="button" class="btn-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+      <form id="expenseForm">
+        <div class="modal-body">
+          <!-- Title -->
+          <div class="form-group">
+            <label class="form-label" for="expenseTitle">Expense Description / Title *</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-pen"></i>
+              <input type="text" id="expenseTitle" class="form-input" placeholder="e.g. Grocery Shopping, Netflix, Uber" required>
+            </div>
+          </div>
+
+          <!-- Amount and Category -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="expenseAmount">Amount *</label>
+              <div class="input-with-icon">
+                <i class="fa-solid fa-dollar-sign"></i>
+                <input type="number" id="expenseAmount" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="expenseCategory">Category *</label>
+              <select id="expenseCategory" class="form-select" required>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Date and Payment Method -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="expenseDate">Date *</label>
+              <input type="date" id="expenseDate" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="expensePaymentMethod">Payment Method</label>
+              <select id="expensePaymentMethod" class="form-select">
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Cash">Cash</option>
+                <option value="UPI / Online">UPI / Online</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Optional Notes -->
+          <div class="form-group">
+            <label class="form-label" for="expenseNotes">Additional Notes (Optional)</label>
+            <textarea id="expenseNotes" class="form-textarea" placeholder="Add extra details, vendor name, or invoice notes..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitExpense">
+            <i class="fa-solid fa-floppy-disk"></i> Save Expense
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Firebase Cloud Configuration Modal
+       ========================================================================== -->
+  <div class="modal-overlay" id="configModal" role="dialog" aria-modal="true" aria-labelledby="cfgModalTitle">
+    <div class="modal-content" style="max-width: 580px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="cfgModalTitle">
+          <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i> Firebase Cloud Firestore Setup
+        </h3>
+        <button type="button" class="btn-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+      <form id="configForm">
+        <div class="modal-body">
+          <div class="config-banner">
+            <p><strong>Connect to your Google Firebase project:</strong></p>
+            <p>1. Open <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: underline;">Firebase Console</a> & create or select a project.</p>
+            <p>2. Create a <strong>Firestore Database</strong> in test mode (or production).</p>
+            <p>3. Go to <strong>Project Settings &gt; General &gt; Your apps &gt; Web app</strong> and copy your config.</p>
+            <button type="button" class="btn btn-secondary" id="btnPasteJson" style="margin-top: 0.6rem; padding: 0.35rem 0.8rem; font-size: 0.8rem;">
+              <i class="fa-solid fa-paste"></i> Quick Paste Firebase Config Object
+            </button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="cfgApiKey">API Key *</label>
+              <input type="text" id="cfgApiKey" class="form-input" placeholder="AIzaSy..." required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfgProjectId">Project ID *</label>
+              <input type="text" id="cfgProjectId" class="form-input" placeholder="my-expense-tracker" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="cfgAuthDomain">Auth Domain</label>
+              <input type="text" id="cfgAuthDomain" class="form-input" placeholder="my-expense-tracker.firebaseapp.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfgStorageBucket">Storage Bucket</label>
+              <input type="text" id="cfgStorageBucket" class="form-input" placeholder="my-expense-tracker.appspot.com">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="cfgMessagingSenderId">Messaging Sender ID</label>
+              <input type="text" id="cfgMessagingSenderId" class="form-input" placeholder="1234567890">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfgAppId">App ID</label>
+              <input type="text" id="cfgAppId" class="form-input" placeholder="1:1234567890:web:abcdef">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn btn-outline-danger" id="btnClearConfig">
+            <i class="fa-solid fa-trash"></i> Reset to Demo
+          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-link"></i> Connect & Save
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Delete Confirmation Modal
+       ========================================================================== -->
+  <div class="modal-overlay" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="delModalTitle">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="delModalTitle" style="color: var(--danger);">
+          <i class="fa-solid fa-triangle-exclamation"></i> Delete Expense
+        </h3>
+        <button type="button" class="btn-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-primary); margin-bottom: 0.6rem;">Are you sure you want to delete this expense?</p>
+        <p id="deleteExpenseName" style="color: var(--text-secondary); font-weight: 600; padding: 0.6rem; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);"></p>
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.6rem;">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmDelete">Delete Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Application Logic (ES Module) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
